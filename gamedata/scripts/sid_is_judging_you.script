@@ -1,0 +1,180 @@
+---------------------------------------------------------------
+-- BEEF'S SIDOROVICH PHONE CALL SCRIPT
+---------------------------------------------------------------
+
+---------------------------------------------------------------
+-- LOCAL VARIABLE DEFINITIONS
+---------------------------------------------------------------
+local shot_count = 0
+local shot_count_total = 0
+local hit_count = 0
+local hit_count_total = 0
+local pda_view_counter = 0
+
+local snd_bad1 = sound_object("sid\\bad1")
+local snd_bad2 = sound_object("sid\\bad2")
+local snd_bad3 = sound_object("sid\\bad3")
+local snd_notbad1 = sound_object("sid\\notbad1")
+local snd_good1 = sound_object("sid\\good1")
+
+
+---------------------------------------------------------------
+-- MAIN FUNCTION
+---------------------------------------------------------------
+
+	local function sid_hates_you(npc,info_id)
+		if info_id == "ui_pda" -- when PDA is turned on
+		then
+
+			-- DEFINE FUNCTION VARIABLES --
+			local hit_percent = round((hit_count / shot_count) * 100,2)
+			local hit_percent_total = round((hit_count_total / shot_count_total) * 100,2)
+			local header1 = "You hit " .. hit_count .. " out of " .. shot_count .. " shots"
+			local message1 = "That's a " .. hit_percent .. "% hit rate. Resetting counter"
+			local header2 = "Your lifetime total is " .. hit_count_total .. " out of " .. shot_count_total .. " shots"
+			local message2 = "That's a " .. hit_percent_total .. "% lifetime hit rate"
+
+			--local phone_caller_id = "shader_param_6 (1,0,0,0)"
+			--local disable_phonecall = "shader_param_6 (0,0,0,0)"
+
+			if shot_count > 2 and pda_view_counter > 1
+			then
+				-- PHONE CALLS --
+				if hit_percent < 50
+				then
+					shot_count_total = shot_count_total + shot_count
+					hit_count_total = hit_count_total + hit_count
+					
+					db.actor:give_game_news(header1, message1, "sidorovich_hates_you", 0, 20000, 0)
+						if shot_count_total > 0
+						then
+							db.actor:give_game_news(header2, message2, "sidorovich_hates_you", 0, 20000, 0)
+						end
+					get_console():execute("shader_param_6 (1,0,0,0)")
+					utils_obj.play_sound("interface\\mp_reward")
+					local bad = (math.random(3))
+						if bad == 1 then snd_bad1:play(db.actor,0,sound_object.s2d)
+						elseif bad == 2 then snd_bad2:play(db.actor,0,sound_object.s2d)
+						elseif bad == 3 then snd_bad3:play(db.actor,0,sound_object.s2d)
+						end
+					pda_view_counter = 0
+					hit_count = 0
+					shot_count = 0
+
+				elseif hit_percent >= 99
+				then
+					shot_count_total = shot_count_total + shot_count
+					hit_count_total = hit_count_total + hit_count
+					db.actor:give_game_news(header1, message1, "sidorovich_hates_you", 0, 20000, 0)
+						if shot_count_total > 0
+						then
+							db.actor:give_game_news(header2, message2, "sidorovich_hates_you", 0, 20000, 0)
+						end
+					get_console():execute("shader_param_6 (1,0,0,0)")
+					utils_obj.play_sound("interface\\mp_reward")
+					snd_good1:play(db.actor,0,sound_object.s2d)
+					pda_view_counter = 0
+					hit_count = 0
+					shot_count = 0
+
+				elseif hit_percent >= 50 --and pda_view_counter > 4
+				then
+					shot_count_total = shot_count_total + shot_count
+					hit_count_total = hit_count_total + hit_count
+					db.actor:give_game_news(header1, message1, "sidorovich_hates_you", 0, 20000, 0)
+						if shot_count_total > 0
+						then
+							db.actor:give_game_news(header2, message2, "sidorovich_hates_you", 0, 20000, 0)
+						end
+					get_console():execute("shader_param_6 (1,0,0,0)")
+					utils_obj.play_sound("interface\\mp_reward")
+					snd_notbad1:play(db.actor,0,sound_object.s2d)
+					pda_view_counter = 0
+					hit_count = 0
+					shot_count = 0
+				else
+					get_console():execute("shader_param_6 (0,0,0,0)")
+				end
+			end
+
+		elseif info_id == "ui_pda_hide" -- when PDA is turned off
+		then
+			-- WHEN PDA IS TURNED OFF --
+			get_console():execute("shader_param_6 (0,0,0,0)")
+			pda_view_counter = pda_view_counter + 1
+		end
+	end
+
+---------------------------------------------------------------
+-- HIT AND SHOT COUNTER FUNCTIONS
+---------------------------------------------------------------
+
+	local function shot_counter(obj,wpn,ammo_elapsed,grenade_elapsed,ammo_type,grenade_type)
+		if wpn and (IsShotgun(wpn) == false)
+		then
+			shot_count = shot_count + 1
+		elseif wpn and (IsShotgun(wpn) == true)
+		then
+			local ammo_magic = db.actor:active_item():get_ammo_type()
+			if (ammo_magic == 9) or (ammo_magic < 3) then shot_count = shot_count + 9
+			else shot_count = shot_count + 1 end
+		end
+	end
+
+	local function hit_counter(obj,amount,local_direction,who,bone_index)
+		if (who:id() == db.actor:id())
+		then
+			hit_count = hit_count + 1
+		end
+	end
+
+---------------------------------------------------------------
+-- LOAD AND SAVE
+---------------------------------------------------------------
+
+local function save_state(m_data)
+
+	local sids_notepad = {}
+
+	sids_notepad.shot_count = shot_count
+	sids_notepad.hit_count = hit_count
+	sids_notepad.pda_view_counter = pda_view_counter
+	sids_notepad.hit_count_total = hit_count_total
+	sids_notepad.shot_count_total = shot_count_total
+
+	m_data.sids_notepad = sids_notepad
+end
+
+local function load_state(m_data)
+
+	if (not m_data.sids_notepad) then
+		return
+	end
+
+	local sids_notepad = m_data.sids_notepad
+
+	shot_count = sids_notepad.shot_count
+	hit_count = sids_notepad.hit_count
+	pda_view_counter = sids_notepad.pda_view_counter
+	hit_count_total = sids_notepad.hit_count_total
+	shot_count_total = sids_notepad.shot_count_total
+
+	get_console():execute("shader_param_6 (0,0,0,0)")
+end
+
+
+---------------------------------------------------------------
+-- CALLBACK DEFINITIONS
+---------------------------------------------------------------
+
+	function on_game_start()
+
+		RegisterScriptCallback("load_state",load_state)
+		RegisterScriptCallback("save_state",save_state)
+		RegisterScriptCallback("actor_on_info_callback",sid_hates_you)
+		RegisterScriptCallback("actor_on_weapon_fired",shot_counter)
+		RegisterScriptCallback("npc_on_hit_callback",hit_counter)
+		RegisterScriptCallback("monster_on_hit_callback",hit_counter)
+		RegisterScriptCallback("heli_on_hit_callback",hit_counter)
+
+	end
